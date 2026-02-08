@@ -1,5 +1,5 @@
 [package]
-name = "bnt-explorer"
+name = "bntui"
 version = "0.1.0"
 edition = "2024"
 description = "Terminal block explorer for Blocknet privacy blockchain"
