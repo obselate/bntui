@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Terminal block explorer for <a href="https://github.com/obselate/blocknet">Blocknet</a>, a privacy-focused cryptocurrency.
+  Terminal block explorer for <a href="https://github.com/blocknetprivacy/blocknet">Blocknet</a>, a privacy-focused cryptocurrency.
 </p>
 
 Built with [ratatui](https://ratatui.rs). Connects to a running Blocknet daemon via its REST API.
