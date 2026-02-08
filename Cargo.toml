@@ -3,6 +3,11 @@ name = "bnt-explorer"
 version = "0.1.0"
 edition = "2024"
 description = "Terminal block explorer for Blocknet privacy blockchain"
+license = "MIT"
+repository = "https://github.com/obselate/bntui"
+homepage = "https://github.com/obselate/bntui"
+keywords = ["terminal", "blockchain", "tui", "ratatui", "cryptocurrency"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 ratatui = "0.29"
