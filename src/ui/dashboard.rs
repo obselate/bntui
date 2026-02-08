@@ -234,7 +234,7 @@ fn render_constellation(frame: &mut Frame, utxo_count: u32, tick: u64, area: Rec
         let phase = fi * 2.399 + t * (0.8 + (fi * 0.3).sin() * 0.4);
 
         // star magnitude (0-5) based on twinkle
-        let twinkle = phase.sin() * 0.5 + 0.5; // 0..1
+        let twinkle = (phase.sin() * 0.5 + 0.5); // 0..1
         let mag = (twinkle * 5.0) as usize;
 
         // only place if cell is empty (first one wins)
