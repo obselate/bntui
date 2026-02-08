@@ -37,6 +37,24 @@ Top-down block field showing the last 500 blocks. Each block is color-coded by t
 
 ## Install
 
+### Homebrew (macOS)
+
+```bash
+brew install obselate/tap/bntui
+```
+
+### AUR (Arch Linux)
+
+```bash
+yay -S bntui
+```
+
+### Cargo (any platform)
+
+```bash
+cargo install bntui
+```
+
 ### From release binaries
 
 Download the latest binary for your platform from [Releases](https://github.com/obselate/bntui/releases).
@@ -54,7 +72,7 @@ Requires Rust 1.85+.
 git clone https://github.com/obselate/bntui.git
 cd bntui
 cargo build --release
-./target/release/bnt-explorer /path/to/blocknet
+./target/release/bntui /path/to/blocknet
 ```
 
 ## Usage

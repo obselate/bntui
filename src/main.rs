@@ -190,7 +190,7 @@ async fn main() -> color_eyre::Result<()> {
     let blocknet_dir = std::env::args()
         .nth(1)
         .or_else(|| std::env::var("BLOCKNET_DIR").ok())
-        .expect("usage: bnt-explorer <blocknet-dir> (or set BLOCKNET_DIR)");
+        .expect("usage: bntui <blocknet-dir> (or set BLOCKNET_DIR)");
 
     let cookie_path = format!("{}/data/api.cookie", blocknet_dir);
     let api = api::ApiClient::new("http://localhost:8332", &cookie_path)
