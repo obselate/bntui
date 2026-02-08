@@ -2,13 +2,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DaemonStats {
-    pub peer_id: String,
     pub peers: u32,
     pub chain_height: u64,
-    pub best_hash: String,
-    pub total_work: u64,
-    pub mempool_size: u32,
-    pub mempool_bytes: u64,
     pub syncing: bool,
     #[serde(default)]
     pub sync_progress: u64,
@@ -16,15 +11,12 @@ pub struct DaemonStats {
     pub sync_target: u64,
     #[serde(default)]
     pub sync_percent: Option<String>,
-    pub identity_age: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MempoolStats {
     pub count: u32,
     pub size_bytes: u64,
-    pub min_fee: u64,
-    pub max_fee: u64,
     pub avg_fee: f64,
 }
 
@@ -33,9 +25,7 @@ pub struct BalanceResponse {
     pub spendable: u64,
     pub pending: u64,
     pub total: u64,
-    pub outputs_total: u32,
     pub outputs_unspent: u32,
-    pub chain_height: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -48,29 +38,15 @@ pub struct MiningStatus {
     pub hash_count: u64,
     #[serde(default)]
     pub blocks_found: u64,
-    #[serde(default)]
-    pub started_at: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct BlockTransaction {
-    pub hash: String,
-    pub fee: u64,
-    pub inputs: u32,
-    pub outputs: u32,
-    pub is_coinbase: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BlockResponse {
     pub height: u64,
-    pub hash: String,
     pub timestamp: u64,
     pub difficulty: u64,
     pub tx_count: u32,
-    pub confirmations: u64,
     pub reward: u64,
-    pub transactions: Vec<BlockTransaction>,
 }
 
 pub fn format_time_ago(timestamp: u64) -> String {
