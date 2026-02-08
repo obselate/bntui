@@ -50,11 +50,11 @@ jobs:
 
       - name: Rename binary (unix)
         if: runner.os != 'Windows'
-        run: cp target/${{ matrix.target }}/release/bnt-explorer ${{ matrix.name }}
+        run: cp target/${{ matrix.target }}/release/bntui ${{ matrix.name }}
 
       - name: Rename binary (windows)
         if: runner.os == 'Windows'
-        run: cp target/${{ matrix.target }}/release/bnt-explorer.exe ${{ matrix.name }}
+        run: cp target/${{ matrix.target }}/release/bntui.exe ${{ matrix.name }}
 
       - uses: actions/upload-artifact@v4
         with:
