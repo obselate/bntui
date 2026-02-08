@@ -1,6 +1,10 @@
-# bntui
+<p align="center">
+  <img src="assets/banner.svg" alt="BNTUI" width="600"/>
+</p>
 
-Terminal block explorer for [Blocknet](https://github.com/obselate/blocknet), a privacy-focused cryptocurrency.
+<p align="center">
+  Terminal block explorer for <a href="https://github.com/obselate/blocknet">Blocknet</a>, a privacy-focused cryptocurrency.
+</p>
 
 Built with [ratatui](https://ratatui.rs). Connects to a running Blocknet daemon via its REST API.
 

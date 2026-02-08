@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
+  <rect width="800" height="200" rx="12" fill="#0d0d0d"/>
+
+  <!-- Wireframe cube - front face -->
+  <polygon points="60,55 140,55 140,145 60,145" fill="none" stroke="#aaff00" stroke-width="2.5"/>
+  <!-- Back face -->
+  <polygon points="90,35 170,35 170,125 90,125" fill="none" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+  <!-- Connecting edges -->
+  <line x1="60" y1="55" x2="90" y2="35" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+  <line x1="140" y1="55" x2="170" y2="35" stroke="#aaff00" stroke-width="2.5"/>
+  <line x1="140" y1="145" x2="170" y2="125" stroke="#aaff00" stroke-width="2.5"/>
+  <line x1="60" y1="145" x2="90" y2="125" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Subtle glow behind cube -->
+  <circle cx="115" cy="90" r="60" fill="#aaff00" opacity="0.03"/>
+
+  <!-- BNTUI text -->
+  <text x="220" y="122" font-family="'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace" font-weight="700" font-size="72" fill="#aaff00" letter-spacing="8">BNTUI</text>
+
+  <!-- Subtitle -->
+  <text x="224" y="155" font-family="'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace" font-weight="400" font-size="16" fill="#8c8c8c" letter-spacing="3">TERMINAL BLOCK EXPLORER</text>
+</svg>
