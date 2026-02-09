@@ -14,8 +14,9 @@ If no directory is given, bntui will look for the Blocknet data directory in:
   1. BLOCKNET_DIR environment variable
   2. Current directory (if ./data/api.cookie exists)
   3. Platform default:
-       macOS:  ~/Library/Application Support/Blocknet
-       Linux:  ~/.blocknet")]
+       macOS:   ~/Library/Application Support/Blocknet
+       Linux:   ~/.blocknet
+       Windows: %APPDATA%\\Blocknet")]
 struct Cli {
     /// Path to blocknet directory [auto-detected if omitted]
     blocknet_dir: Option<String>,
@@ -46,21 +47,33 @@ fn discover_blocknet_dir() -> Option<PathBuf> {
         return Some(cwd);
     }
 
-    let home = PathBuf::from(std::env::var("HOME").ok()?);
-
     // macOS: ~/Library/Application Support/Blocknet
     if cfg!(target_os = "macos") {
-        let mac_dir = home.join("Library/Application Support/Blocknet");
-        if has_cookie(&mac_dir) {
-            return Some(mac_dir);
+        if let Ok(home) = std::env::var("HOME") {
+            let mac_dir = PathBuf::from(home).join("Library/Application Support/Blocknet");
+            if has_cookie(&mac_dir) {
+                return Some(mac_dir);
+            }
         }
     }
 
     // Linux: ~/.blocknet
     if cfg!(target_os = "linux") {
-        let linux_dir = home.join(".blocknet");
-        if has_cookie(&linux_dir) {
-            return Some(linux_dir);
+        if let Ok(home) = std::env::var("HOME") {
+            let linux_dir = PathBuf::from(home).join(".blocknet");
+            if has_cookie(&linux_dir) {
+                return Some(linux_dir);
+            }
+        }
+    }
+
+    // Windows: %APPDATA%\Blocknet
+    if cfg!(target_os = "windows") {
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let win_dir = PathBuf::from(appdata).join("Blocknet");
+            if has_cookie(&win_dir) {
+                return Some(win_dir);
+            }
         }
     }
 
@@ -250,6 +263,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let cli = Cli::parse();
 
+    // Resolve blocknet directory: explicit arg > env var > auto-detect
     let blocknet_dir = cli
         .blocknet_dir
         .or_else(|| std::env::var("BLOCKNET_DIR").ok())
@@ -270,6 +284,9 @@ async fn main() -> color_eyre::Result<()> {
             if cfg!(target_os = "linux") {
                 eprintln!("  - ~/.blocknet");
             }
+            if cfg!(target_os = "windows") {
+                eprintln!("  - %APPDATA%\\Blocknet");
+            }
             eprintln!();
             eprintln!("Make sure the Blocknet daemon is running (it creates the cookie file),");
             eprintln!("or provide the path explicitly:");
@@ -281,18 +298,45 @@ async fn main() -> color_eyre::Result<()> {
             std::process::exit(1);
         });
 
+    // Canonicalize to absolute path so relative paths don't break
+    let blocknet_dir = blocknet_dir.canonicalize().unwrap_or_else(|_| {
+        eprintln!("error: directory does not exist: {}", blocknet_dir.display());
+        eprintln!();
+        eprintln!("Double-check the path and make sure the Blocknet daemon has been run");
+        eprintln!("at least once (it creates the data directory on first start).");
+        std::process::exit(1);
+    });
+
     let cookie_path = cli
         .cookie
-        .unwrap_or_else(|| blocknet_dir.join("data").join("api.cookie").to_string_lossy().into_owned());
+        .map(PathBuf::from)
+        .unwrap_or_else(|| blocknet_dir.join("data").join("api.cookie"));
 
+    // Validate cookie file before trying to read it
+    if !cookie_path.exists() {
+        eprintln!("error: cookie file not found: {}", cookie_path.display());
+        eprintln!();
+        eprintln!("The Blocknet daemon creates this file on startup.");
+        eprintln!("Make sure the daemon is running with the API enabled (--api flag).");
+        std::process::exit(1);
+    }
+
+    let cookie_path_str = cookie_path.to_string_lossy().into_owned();
     let base_url = format!("http://{}:{}", cli.host, cli.port);
-    let api = match api::ApiClient::new(&base_url, &cookie_path) {
+    let api = match api::ApiClient::new(&base_url, &cookie_path_str) {
         Ok(api) => api,
         Err(e) => {
-            eprintln!("error: {e}");
+            let err = e.to_string();
+            eprintln!("error: {err}");
             eprintln!();
-            eprintln!("Is the Blocknet daemon running? Make sure it's started before launching bntui.");
-            eprintln!("Cookie path: {cookie_path}");
+            if err.contains("permission denied") || err.contains("Permission denied") {
+                eprintln!("The cookie file exists but isn't readable by your user.");
+                eprintln!("Check the file permissions:");
+                eprintln!("  {}", cookie_path.display());
+            } else {
+                eprintln!("Is the Blocknet daemon running? Make sure it's started with --api.");
+                eprintln!("Cookie path: {}", cookie_path.display());
+            }
             std::process::exit(1);
         }
     };
@@ -302,7 +346,8 @@ async fn main() -> color_eyre::Result<()> {
         eprintln!("error: could not connect to Blocknet daemon at {base_url}");
         eprintln!("  {e}");
         eprintln!();
-        eprintln!("Make sure the daemon is running and the API is enabled.");
+        eprintln!("The cookie file was found, so the daemon may have been running earlier.");
+        eprintln!("Make sure the daemon is running and the API is enabled (--api flag).");
         std::process::exit(1);
     }
 

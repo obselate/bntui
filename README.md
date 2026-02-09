@@ -51,6 +51,12 @@ brew install obselate/tap/bntui
 yay -S bntui
 ```
 
+### Chocolatey (Windows)
+
+```powershell
+choco install bntui
+```
+
 ### Cargo (any platform)
 
 ```bash
@@ -93,6 +99,7 @@ bntui searches for `data/api.cookie` in the following order:
 3. **Platform default:**
    - macOS: `~/Library/Application Support/Blocknet`
    - Linux: `~/.blocknet`
+   - Windows: `%APPDATA%\Blocknet`
 
 ```
 $ bntui --help
