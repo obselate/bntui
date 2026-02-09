@@ -1,5 +1,6 @@
 use clap::Parser;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
+use std::path::{Path, PathBuf};
 
 mod api;
 mod app;
@@ -8,9 +9,15 @@ mod types;
 mod ui;
 
 #[derive(Parser)]
-#[command(version, about)]
+#[command(version, about, after_help = "\
+If no directory is given, bntui will look for the Blocknet data directory in:
+  1. BLOCKNET_DIR environment variable
+  2. Current directory (if ./data/api.cookie exists)
+  3. Platform default:
+       macOS:  ~/Library/Application Support/Blocknet
+       Linux:  ~/.blocknet")]
 struct Cli {
-    /// Path to blocknet directory (or set BLOCKNET_DIR env var)
+    /// Path to blocknet directory [auto-detected if omitted]
     blocknet_dir: Option<String>,
 
     /// API host to connect to
@@ -24,6 +31,40 @@ struct Cli {
     /// Path to API cookie file (default: {blocknet_dir}/data/api.cookie)
     #[arg(long)]
     cookie: Option<String>,
+}
+
+/// Check if a directory looks like a blocknet data directory.
+fn has_cookie(dir: &Path) -> bool {
+    dir.join("data").join("api.cookie").is_file()
+}
+
+/// Try to find the blocknet data directory automatically.
+fn discover_blocknet_dir() -> Option<PathBuf> {
+    // current directory
+    let cwd = std::env::current_dir().ok()?;
+    if has_cookie(&cwd) {
+        return Some(cwd);
+    }
+
+    let home = PathBuf::from(std::env::var("HOME").ok()?);
+
+    // macOS: ~/Library/Application Support/Blocknet
+    if cfg!(target_os = "macos") {
+        let mac_dir = home.join("Library/Application Support/Blocknet");
+        if has_cookie(&mac_dir) {
+            return Some(mac_dir);
+        }
+    }
+
+    // Linux: ~/.blocknet
+    if cfg!(target_os = "linux") {
+        let linux_dir = home.join(".blocknet");
+        if has_cookie(&linux_dir) {
+            return Some(linux_dir);
+        }
+    }
+
+    None
 }
 
 
@@ -212,10 +253,28 @@ async fn main() -> color_eyre::Result<()> {
     let blocknet_dir = cli
         .blocknet_dir
         .or_else(|| std::env::var("BLOCKNET_DIR").ok())
+        .map(PathBuf::from)
+        .or_else(|| {
+            let dir = discover_blocknet_dir()?;
+            eprintln!("auto-detected blocknet directory: {}", dir.display());
+            Some(dir)
+        })
         .unwrap_or_else(|| {
-            eprintln!("error: no blocknet directory provided");
+            eprintln!("error: could not find blocknet data directory");
             eprintln!();
-            eprintln!("  bntui <BLOCKNET_DIR>");
+            eprintln!("Looked for data/api.cookie in:");
+            eprintln!("  - current directory");
+            if cfg!(target_os = "macos") {
+                eprintln!("  - ~/Library/Application Support/Blocknet");
+            }
+            if cfg!(target_os = "linux") {
+                eprintln!("  - ~/.blocknet");
+            }
+            eprintln!();
+            eprintln!("Make sure the Blocknet daemon is running (it creates the cookie file),");
+            eprintln!("or provide the path explicitly:");
+            eprintln!();
+            eprintln!("  bntui /path/to/blocknet");
             eprintln!("  export BLOCKNET_DIR=/path/to/blocknet");
             eprintln!();
             eprintln!("Run 'bntui --help' for more info.");
@@ -224,7 +283,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let cookie_path = cli
         .cookie
-        .unwrap_or_else(|| format!("{}/data/api.cookie", blocknet_dir));
+        .unwrap_or_else(|| blocknet_dir.join("data").join("api.cookie").to_string_lossy().into_owned());
 
     let base_url = format!("http://{}:{}", cli.host, cli.port);
     let api = match api::ApiClient::new(&base_url, &cookie_path) {

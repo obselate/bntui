@@ -35,6 +35,8 @@ Top-down block field showing the last 500 blocks. Each block is color-coded by t
 - A running Blocknet node with the API enabled (default port 8332)
 - API cookie file at `<blocknet-dir>/data/api.cookie` (created by the daemon on startup)
 
+> **Note:** The daemon must be running before you launch bntui — it creates the cookie file on startup.
+
 ## Install
 
 ### Homebrew (macOS)
@@ -77,6 +79,21 @@ cargo build --release
 
 ## Usage
 
+If the Blocknet daemon is running, `bntui` will automatically find the data directory — no arguments needed:
+
+```bash
+# auto-detect (checks cwd, then platform default)
+bntui
+```
+
+bntui searches for `data/api.cookie` in the following order:
+
+1. **Explicit argument** or `BLOCKNET_DIR` env var
+2. **Current directory** — useful when running from the blocknet project directory
+3. **Platform default:**
+   - macOS: `~/Library/Application Support/Blocknet`
+   - Linux: `~/.blocknet`
+
 ```
 $ bntui --help
 Terminal block explorer for Blocknet privacy blockchain
@@ -84,7 +101,7 @@ Terminal block explorer for Blocknet privacy blockchain
 Usage: bntui [OPTIONS] [BLOCKNET_DIR]
 
 Arguments:
-  [BLOCKNET_DIR]  Path to blocknet directory (or set BLOCKNET_DIR env var)
+  [BLOCKNET_DIR]  Path to blocknet directory [auto-detected if omitted]
 
 Options:
       --host <HOST>      API host to connect to [default: localhost]
@@ -95,7 +112,7 @@ Options:
 ```
 
 ```bash
-# Pass the blocknet directory as an argument
+# Or pass the directory explicitly
 bntui /path/to/blocknet
 
 # Or set the environment variable
