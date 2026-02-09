@@ -3,16 +3,29 @@
   <metadata>
     <id>bntui</id>
     <version>0.1.2</version>
-    <title>bntui</title>
+    <title>BNTUI</title>
     <authors>obselate</authors>
     <owners>obselate</owners>
+    <copyright>Copyright (c) 2025 obselate</copyright>
     <projectUrl>https://github.com/obselate/bntui</projectUrl>
     <licenseUrl>https://github.com/obselate/bntui/blob/master/LICENSE</licenseUrl>
     <projectSourceUrl>https://github.com/obselate/bntui</projectSourceUrl>
     <bugTrackerUrl>https://github.com/obselate/bntui/issues</bugTrackerUrl>
-    <tags>blockchain terminal tui blocknet cryptocurrency</tags>
+    <!-- TODO: Add a 128x128+ PNG icon and update this URL -->
+    <iconUrl>https://raw.githubusercontent.com/obselate/bntui/master/assets/icon.png</iconUrl>
+    <releaseNotes>https://github.com/obselate/bntui/releases/tag/v0.1.2</releaseNotes>
+    <tags>blockchain terminal tui blocknet cryptocurrency cli</tags>
     <summary>Terminal block explorer for Blocknet privacy blockchain</summary>
-    <description>Terminal block explorer for Blocknet, a privacy-focused cryptocurrency. Built with ratatui. Features a dashboard with chain stats, wallet balance, mempool sparklines, mining controls with plasma visualizer, and a 3D block grid view.</description>
+    <description>Terminal block explorer for Blocknet, a privacy-focused cryptocurrency. Built with ratatui. Connects to a running Blocknet daemon via its REST API.
+
+Features:
+- Dashboard with chain stats, wallet balance, mempool sparklines with history
+- Mining controls with a plasma visualizer that reacts to hashrate
+- 3D block grid view with spinning wireframe cubes
+- Auto-detection of Blocknet data directory on all platforms
+- Shockwave animation on block discovery
+
+Requires a running Blocknet node with the API enabled.</description>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
   </metadata>
   <files>

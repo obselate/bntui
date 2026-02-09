@@ -1,0 +1,3 @@
+MIT License
+
+See https://github.com/obselate/bntui/blob/master/LICENSE for the full license text.

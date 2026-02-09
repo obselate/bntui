@@ -1,0 +1,12 @@
+VERIFICATION
+
+The binary is downloaded directly from the official GitHub releases page:
+https://github.com/obselate/bntui/releases
+
+To verify:
+1. Download bntui-windows-x86_64.exe from the release page above
+2. Compare the SHA256 checksum with the one in chocolateyinstall.ps1
+3. Verify using: Get-FileHash bntui-windows-x86_64.exe -Algorithm SHA256
+
+The project is open source under the MIT license:
+https://github.com/obselate/bntui/blob/master/LICENSE
