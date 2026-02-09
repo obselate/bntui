@@ -108,9 +108,11 @@ jobs:
           $nuspec = $nuspec -replace '(?<=releases/tag/v).*?(?=</releaseNotes>)', $version
           Set-Content -Path choco/bntui.nuspec -Value $nuspec
 
-      - name: Pack and push
+      - name: Pack
+        run: choco pack choco\bntui.nuspec --outputdirectory choco
+
+      - name: Push to Chocolatey
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          choco pack choco/bntui.nuspec --outputdirectory choco
-          choco push "choco/bntui.${version}.nupkg" --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}
+          choco push "choco\bntui.${version}.nupkg" --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}
