@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="#0d0d0d"/>
+
+  <!-- Wireframe cube - centered in 128x128 -->
+  <!-- Front face -->
+  <polygon points="30,40 90,40 90,105 30,105" fill="none" stroke="#aaff00" stroke-width="2.5"/>
+  <!-- Back face -->
+  <polygon points="50,23 110,23 110,88 50,88" fill="none" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+  <!-- Connecting edges -->
+  <line x1="30" y1="40" x2="50" y2="23" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+  <line x1="90" y1="40" x2="110" y2="23" stroke="#aaff00" stroke-width="2.5"/>
+  <line x1="90" y1="105" x2="110" y2="88" stroke="#aaff00" stroke-width="2.5"/>
+  <line x1="30" y1="105" x2="50" y2="88" stroke="#aaff00" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Subtle glow -->
+  <circle cx="70" cy="64" r="45" fill="#aaff00" opacity="0.03"/>
+</svg>
