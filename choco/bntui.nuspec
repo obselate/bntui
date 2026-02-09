@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.chocolatey.org/2012/08">
   <metadata>
     <id>bntui</id>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     <title>bntui</title>
     <authors>obselate</authors>
     <owners>obselate</owners>
