@@ -32,8 +32,8 @@ Top-down block field showing the last 500 blocks. Each block is color-coded by t
 
 ## Requirements
 
-- A running Blocknet node with the API enabled (port 8332)
-- API cookie file at `<blocknet-dir>/data/api.cookie`
+- A running Blocknet node with the API enabled (default port 8332)
+- API cookie file at `<blocknet-dir>/data/api.cookie` (created by the daemon on startup)
 
 ## Install
 
@@ -77,6 +77,23 @@ cargo build --release
 
 ## Usage
 
+```
+$ bntui --help
+Terminal block explorer for Blocknet privacy blockchain
+
+Usage: bntui [OPTIONS] [BLOCKNET_DIR]
+
+Arguments:
+  [BLOCKNET_DIR]  Path to blocknet directory (or set BLOCKNET_DIR env var)
+
+Options:
+      --host <HOST>      API host to connect to [default: localhost]
+      --port <PORT>      API port to connect to [default: 8332]
+      --cookie <COOKIE>  Path to API cookie file (default: {blocknet_dir}/data/api.cookie)
+  -h, --help             Print help
+  -V, --version          Print version
+```
+
 ```bash
 # Pass the blocknet directory as an argument
 bntui /path/to/blocknet
@@ -84,9 +101,10 @@ bntui /path/to/blocknet
 # Or set the environment variable
 export BLOCKNET_DIR=/path/to/blocknet
 bntui
-```
 
-The blocknet directory should contain `data/api.cookie` (created by the daemon on startup).
+# Connect to a remote daemon
+bntui --host 192.168.1.100 --port 8332 --cookie /path/to/api.cookie
+```
 
 ### Docker
 

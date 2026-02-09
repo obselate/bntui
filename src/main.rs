@@ -1,3 +1,4 @@
+use clap::Parser;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 
 mod api;
@@ -5,6 +6,25 @@ mod app;
 mod cube;
 mod types;
 mod ui;
+
+#[derive(Parser)]
+#[command(version, about)]
+struct Cli {
+    /// Path to blocknet directory (or set BLOCKNET_DIR env var)
+    blocknet_dir: Option<String>,
+
+    /// API host to connect to
+    #[arg(long, default_value = "localhost")]
+    host: String,
+
+    /// API port to connect to
+    #[arg(long, default_value_t = 8332)]
+    port: u16,
+
+    /// Path to API cookie file (default: {blocknet_dir}/data/api.cookie)
+    #[arg(long)]
+    cookie: Option<String>,
+}
 
 
 async fn run(
@@ -187,14 +207,45 @@ async fn run(
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    let blocknet_dir = std::env::args()
-        .nth(1)
-        .or_else(|| std::env::var("BLOCKNET_DIR").ok())
-        .expect("usage: bntui <blocknet-dir> (or set BLOCKNET_DIR)");
+    let cli = Cli::parse();
 
-    let cookie_path = format!("{}/data/api.cookie", blocknet_dir);
-    let api = api::ApiClient::new("http://localhost:8332", &cookie_path)
-        .map_err(|e| color_eyre::eyre::eyre!(e))?;
+    let blocknet_dir = cli
+        .blocknet_dir
+        .or_else(|| std::env::var("BLOCKNET_DIR").ok())
+        .unwrap_or_else(|| {
+            eprintln!("error: no blocknet directory provided");
+            eprintln!();
+            eprintln!("  bntui <BLOCKNET_DIR>");
+            eprintln!("  export BLOCKNET_DIR=/path/to/blocknet");
+            eprintln!();
+            eprintln!("Run 'bntui --help' for more info.");
+            std::process::exit(1);
+        });
+
+    let cookie_path = cli
+        .cookie
+        .unwrap_or_else(|| format!("{}/data/api.cookie", blocknet_dir));
+
+    let base_url = format!("http://{}:{}", cli.host, cli.port);
+    let api = match api::ApiClient::new(&base_url, &cookie_path) {
+        Ok(api) => api,
+        Err(e) => {
+            eprintln!("error: {e}");
+            eprintln!();
+            eprintln!("Is the Blocknet daemon running? Make sure it's started before launching bntui.");
+            eprintln!("Cookie path: {cookie_path}");
+            std::process::exit(1);
+        }
+    };
+
+    // Quick check that the daemon is actually responding before entering the TUI
+    if let Err(e) = api.get_status().await {
+        eprintln!("error: could not connect to Blocknet daemon at {base_url}");
+        eprintln!("  {e}");
+        eprintln!();
+        eprintln!("Make sure the daemon is running and the API is enabled.");
+        std::process::exit(1);
+    }
 
     let mut terminal = ratatui::init();
     let result = run(&mut terminal, &api).await;
