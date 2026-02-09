@@ -75,3 +75,42 @@ jobs:
         with:
           generate_release_notes: true
           files: artifacts/*
+
+  chocolatey:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bntui-windows-x86_64.exe
+          path: artifacts
+
+      - name: Compute checksum and update install script
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash artifacts/bntui-windows-x86_64.exe -Algorithm SHA256).Hash
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $install = Get-Content choco/tools/chocolateyinstall.ps1 -Raw
+          $install = $install -replace "(?<=\`$version = ').*?(?=')", $version
+          $install = $install -replace "(?<=-Checksum64 ').*?(?=')", $hash
+          Set-Content -Path choco/tools/chocolateyinstall.ps1 -Value $install
+          Write-Host "Version: $version"
+          Write-Host "SHA256: $hash"
+
+      - name: Update nuspec version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $nuspec = Get-Content choco/bntui.nuspec -Raw
+          $nuspec = $nuspec -replace '(?<=<version>).*?(?=</version>)', $version
+          $nuspec = $nuspec -replace '(?<=releases/tag/v).*?(?=</releaseNotes>)', $version
+          Set-Content -Path choco/bntui.nuspec -Value $nuspec
+
+      - name: Pack and push
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          choco pack choco/bntui.nuspec --outputdirectory choco
+          choco push "choco/bntui.${version}.nupkg" --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}
