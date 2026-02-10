@@ -81,6 +81,69 @@ fn discover_blocknet_dir() -> Option<PathBuf> {
 }
 
 
+fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    // Try system clipboard commands first (arboard lies about success on Wayland
+    // then drops the content when the Clipboard object is freed)
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let tools: &[(&str, &[&str])] = &[
+        ("wl-copy", &[]),
+        ("xclip", &["-selection", "clipboard"]),
+    ];
+    for (cmd, args) in tools {
+        if let Ok(mut child) = Command::new(cmd)
+            .args(*args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            if let Some(ref mut stdin) = child.stdin {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            drop(child.stdin.take());
+            if child.wait().map(|s| s.success()).unwrap_or(false) {
+                return Ok(());
+            }
+        }
+    }
+    // Last resort: arboard (works on macOS/Windows, unreliable on Wayland)
+    if let Ok(mut cb) = arboard::Clipboard::new() {
+        if cb.set_text(text).is_ok() {
+            return Ok(());
+        }
+    }
+    Err("Install wl-clipboard or xclip".to_string())
+}
+
+fn open_in_browser(url: &str) {
+    use std::process::{Command, Stdio};
+    #[cfg(target_os = "linux")]
+    {
+        let _ = Command::new("xdg-open")
+            .arg(url)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("open")
+            .arg(url)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+    }
+}
+
 async fn run(
     terminal: &mut ratatui::DefaultTerminal,
     api: &api::ApiClient,
@@ -93,7 +156,7 @@ async fn run(
     }
 
     if let Some(ref stats) = app.status {
-        let start = stats.chain_height.saturating_sub(499);
+        let start = stats.chain_height.saturating_sub(999);
         for h in start..=stats.chain_height {
             if let Ok(block) = api.get_block(h).await {
                 app.chain_blocks.push(block);
@@ -116,6 +179,9 @@ async fn run(
     if let Ok(mining) = api.get_mining().await {
         app.mining = Some(mining);
     }
+    if let Ok(addr) = api.get_address().await {
+        app.wallet_address = Some(addr.address);
+    }
 
     let mut should_quit = false;
     loop {
@@ -126,71 +192,197 @@ async fn run(
             let event = crossterm::event::read()?;
             if let Event::Key(key) = event {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') => should_quit = true,
-                        KeyCode::Char('1') => app.current_view = 1,
-                        KeyCode::Char('2') => app.current_view = 2,
-                        KeyCode::Char('m') => {
-                            if let Some(ref mining) = app.mining {
-                                if mining.running {
-                                    api.stop_mining().await.ok();
-                                } else {
-                                    api.start_mining().await.ok();
-                                }
-                                if let Ok(m) = api.get_mining().await {
-                                    app.mining = Some(m);
+                    match app.input_mode {
+                        app::InputMode::Normal => match key.code {
+                            KeyCode::Esc => {
+                                app.flash_message = None;
+                            }
+                            KeyCode::Char('c') => {
+                                let copyable = app.flash_message.as_ref()
+                                    .and_then(|f| f.copyable.clone());
+                                if let Some(text) = copyable {
+                                    match copy_to_clipboard(&text) {
+                                        Ok(_) => {
+                                            app.set_flash("Copied!".to_string());
+                                        }
+                                        Err(e) => {
+                                            app.set_flash(format!("Clipboard error: {}", e));
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        KeyCode::Char('+') | KeyCode::Char('=') => {
-                            if let Some(ref mining) = app.mining {
-                                api.set_threads(mining.threads + 1).await.ok();
-                                if let Ok(m) = api.get_mining().await {
-                                    app.mining = Some(m);
-                                }
+                            KeyCode::Char('q') => should_quit = true,
+                            KeyCode::Char('1') => app.current_view = 1,
+                            KeyCode::Char('2') => app.current_view = 2,
+                            KeyCode::Char('s') => {
+                                app.input_mode = app::InputMode::SendDialog {
+                                    address: String::new(),
+                                    amount: String::new(),
+                                    focused: 0,
+                                    error: None,
+                                };
                             }
-                        }
-                        KeyCode::Char('-') => {
-                            if let Some(ref mining) = app.mining {
-                                if mining.threads > 1 {
-                                    api.set_threads(mining.threads - 1).await.ok();
+                            KeyCode::Char('m') => {
+                                if let Some(ref mining) = app.mining {
+                                    if mining.running {
+                                        api.stop_mining().await.ok();
+                                    } else {
+                                        api.start_mining().await.ok();
+                                    }
                                     if let Ok(m) = api.get_mining().await {
                                         app.mining = Some(m);
                                     }
                                 }
                             }
-                        }
-                        KeyCode::Char('j') => {
-                            // left/up in grid = newer
-                            if app.current_view == 2
-                                && !app.block_cubes.is_empty()
-                                && app.selected + 1 < app.block_cubes.len()
-                            {
-                                app.selected += 1;
+                            KeyCode::Char('+') | KeyCode::Char('=') => {
+                                if let Some(ref mining) = app.mining {
+                                    let new_threads = mining.threads + 1;
+                                    let was_running = mining.running;
+
+                                    api.set_threads(new_threads).await.ok();
+                                    if let Ok(m) = api.get_mining().await {
+                                        app.mining = Some(m);
+                                    }
+                                    if was_running {
+                                        app.threads_pending_restart = Some(app.tick_count);
+                                    }
+                                }
                             }
-                        }
-                        KeyCode::Char('k') => {
-                            // right/down in grid = older
-                            if app.current_view == 2 && app.selected > 0 {
-                                app.selected -= 1;
+                            KeyCode::Char('-') => {
+                                if let Some(ref mining) = app.mining {
+                                    if mining.threads > 1 {
+                                        let new_threads = mining.threads - 1;
+                                        let was_running = mining.running;
+
+                                        api.set_threads(new_threads).await.ok();
+                                        if let Ok(m) = api.get_mining().await {
+                                            app.mining = Some(m);
+                                        }
+                                        if was_running {
+                                            app.threads_pending_restart = Some(app.tick_count);
+                                        }
+                                    }
+                                }
                             }
-                        }
-                        KeyCode::Char('J') => {
-                            // jump up = newer
-                            if app.current_view == 2 && !app.block_cubes.is_empty() {
-                                let jump = app.blocks_per_row;
-                                let max = app.block_cubes.len() - 1;
-                                app.selected = (app.selected + jump).min(max);
+                            KeyCode::Char('j') => {
+                                if app.current_view == 2
+                                    && !app.block_cubes.is_empty()
+                                    && app.selected + 1 < app.block_cubes.len()
+                                {
+                                    app.selected += 1;
+                                }
                             }
-                        }
-                        KeyCode::Char('K') => {
-                            // jump down = older
-                            if app.current_view == 2 && app.selected > 0 {
-                                let jump = app.blocks_per_row;
-                                app.selected = app.selected.saturating_sub(jump);
+                            KeyCode::Char('k') => {
+                                if app.current_view == 2 && app.selected > 0 {
+                                    app.selected -= 1;
+                                }
                             }
-                        }
-                        _ => {}
+                            KeyCode::Char('J') => {
+                                if app.current_view == 2 && !app.block_cubes.is_empty() {
+                                    let jump = app.blocks_per_row;
+                                    let max = app.block_cubes.len() - 1;
+                                    app.selected = (app.selected + jump).min(max);
+                                }
+                            }
+                            KeyCode::Char('K') => {
+                                if app.current_view == 2 && app.selected > 0 {
+                                    let jump = app.blocks_per_row;
+                                    app.selected = app.selected.saturating_sub(jump);
+                                }
+                            }
+                            KeyCode::Char('r') => {
+                                if let Some(ref addr) = app.wallet_address {
+                                    let addr = addr.clone();
+                                    match copy_to_clipboard(&addr) {
+                                        Ok(_) => {
+                                            app.set_flash(format!("Address copied: {}", addr))
+                                        }
+                                        Err(e) => {
+                                            app.set_flash(format!("Clipboard error: {}", e))
+                                        }
+                                    }
+                                }
+                            }
+                            KeyCode::Char('v') => {
+                                if app.current_view == 2 {
+                                    if let Some(block) = app.chain_blocks.get(app.selected) {
+                                        let url = format!(
+                                            "https://explorer.blocknetcrypto.com/block/{}",
+                                            block.height
+                                        );
+                                        open_in_browser(&url);
+                                        app.set_flash("Opening block in browser…".to_string());
+                                    }
+                                }
+                            }
+                            _ => {}
+                        },
+                        app::InputMode::SendDialog {
+                            ref mut address,
+                            ref mut amount,
+                            ref mut focused,
+                            ref mut error,
+                        } => match key.code {
+                            KeyCode::Esc => {
+                                app.input_mode = app::InputMode::Normal;
+                            }
+                            KeyCode::Tab | KeyCode::Down | KeyCode::Up => {
+                                *focused = if *focused == 0 { 1 } else { 0 };
+                            }
+                            KeyCode::BackTab => {
+                                *focused = if *focused == 0 { 1 } else { 0 };
+                            }
+                            KeyCode::Backspace => {
+                                let field =
+                                    if *focused == 0 { address } else { amount };
+                                field.pop();
+                                *error = None;
+                            }
+                            KeyCode::Enter => {
+                                let addr = address.clone();
+                                let amt_str = amount.clone();
+
+                                if addr.is_empty() {
+                                    *error = Some("Address is required".to_string());
+                                } else if amt_str.is_empty() {
+                                    *error = Some("Amount is required".to_string());
+                                } else {
+                                    match types::parse_bnt_amount(&amt_str) {
+                                        None => {
+                                            *error =
+                                                Some("Invalid amount format".to_string());
+                                        }
+                                        Some(0) => {
+                                            *error =
+                                                Some("Amount must be greater than 0".to_string());
+                                        }
+                                        Some(atomic) => {
+                                            match api.send_to(&addr, atomic).await {
+                                                Ok(txid) => {
+                                                    app.input_mode =
+                                                        app::InputMode::Normal;
+                                                    app.log_tx(&txid, &addr, atomic);
+                                                    app.set_flash_persistent(
+                                                        format!("Sent! tx: {}", txid),
+                                                        txid,
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    *error = Some(e);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            KeyCode::Char(c) => {
+                                let field =
+                                    if *focused == 0 { address } else { amount };
+                                field.push(c);
+                                *error = None;
+                            }
+                            _ => {}
+                        },
                     }
                 }
             }
@@ -211,6 +403,19 @@ async fn run(
             app.update_plasma();
         }
         app.update_block_found();
+
+        app.update_flash();
+
+        if let Some(changed_tick) = app.threads_pending_restart {
+            if app.tick_count - changed_tick > 15 {
+                app.threads_pending_restart = None;
+                api.stop_mining().await.ok();
+                api.start_mining().await.ok();
+                if let Ok(m) = api.get_mining().await {
+                    app.mining = Some(m);
+                }
+            }
+        }
 
         // poll status every ~1 second (30 ticks × 33ms)
         if app.tick_count % 30 == 0 {

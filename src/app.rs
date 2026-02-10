@@ -1,6 +1,23 @@
 use crate::cube;
 use crate::types;
 
+pub enum InputMode {
+    Normal,
+    SendDialog {
+        address: String,
+        amount: String,
+        focused: u8,
+        error: Option<String>,
+    },
+}
+
+pub struct FlashMessage {
+    pub text: String,
+    pub created: u64,
+    pub persistent: bool,
+    pub copyable: Option<String>,
+}
+
 pub struct App {
     pub current_view: u8,
     pub tick_count: u64,
@@ -12,6 +29,7 @@ pub struct App {
     pub status: Option<types::DaemonStats>,
     pub mempool: Option<types::MempoolStats>,
     pub balance: Option<types::BalanceResponse>,
+    pub wallet_address: Option<String>,
     pub mining: Option<types::MiningStatus>,
     // plasma visualizer state
     pub plasma_t: f32,
@@ -25,6 +43,10 @@ pub struct App {
     pub mempool_history: Vec<u64>,
     pub mempool_size_history: Vec<u64>,
     pub mempool_fee_history: Vec<u64>,
+    pub threads_pending_restart: Option<u64>,
+    pub flash_message: Option<FlashMessage>,
+    pub input_mode: InputMode,
+    pub tx_history: Vec<String>,
 }
 
 impl App {
@@ -40,6 +62,7 @@ impl App {
             status: None,
             mempool: None,
             balance: None,
+            wallet_address: None,
             mining: None,
             plasma_t: 0.0,
             plasma_intensity: 0.0,
@@ -50,6 +73,10 @@ impl App {
             mempool_history: vec![],
             mempool_size_history: vec![],
             mempool_fee_history: vec![],
+            threads_pending_restart: None,
+            flash_message: None,
+            input_mode: InputMode::Normal,
+            tx_history: vec![],
         }
     }
 
@@ -132,6 +159,53 @@ impl App {
         ] {
             if h.len() > 200 {
                 h.drain(..h.len() - 200);
+            }
+        }
+    }
+
+    pub fn set_flash(&mut self, msg: String) {
+        self.flash_message = Some(FlashMessage {
+            text: msg,
+            created: self.tick_count,
+            persistent: false,
+            copyable: None,
+        });
+    }
+
+    pub fn set_flash_persistent(&mut self, msg: String, copyable: String) {
+        self.flash_message = Some(FlashMessage {
+            text: msg,
+            created: self.tick_count,
+            persistent: true,
+            copyable: Some(copyable),
+        });
+    }
+
+    pub fn log_tx(&mut self, txid: &str, address: &str, amount: u64) {
+        self.tx_history.push(txid.to_string());
+        if let Ok(home) = std::env::var("HOME") {
+            let dir = std::path::PathBuf::from(home).join(".bntui");
+            let _ = std::fs::create_dir_all(&dir);
+            let log_path = dir.join("tx.log");
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_path)
+            {
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let _ = writeln!(f, "{} {} {} {}", ts, txid, address, amount);
+            }
+        }
+    }
+
+    pub fn update_flash(&mut self) {
+        if let Some(ref flash) = self.flash_message {
+            if !flash.persistent && self.tick_count - flash.created > 90 {
+                self.flash_message = None;
             }
         }
     }

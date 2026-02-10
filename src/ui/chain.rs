@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::app::App;
+use crate::{app::App};
 use crate::types::{format_bnt, format_time_ago};
 use super::{GREEN, DIM};
 
@@ -47,6 +47,54 @@ pub fn render(frame: &mut Frame, app: &mut App, title_area: Rect, content_area: 
     render_progress_bar(frame, app, sections[2]);
 }
 
+fn render_tx_list(frame: &mut Frame, block: &crate::types::BlockResponse, area: Rect) {
+    if area.height == 0 {
+        return;
+    }
+
+    let mut lines = Vec::new();
+    let max_txs = area.height as usize;
+
+    for (i, tx) in block.transactions.iter().enumerate() {
+        if i >= max_txs {
+            break;
+        }
+
+        let hash_short = &tx.hash[..tx.hash.len().min(10)];
+
+        if tx.is_coinbase {
+            lines.push(Line::from(vec![
+                Span::styled(" coinbase ", Style::default().fg(GREEN)),
+                Span::styled(
+                    format!("{}in {}out", tx.inputs, tx.outputs),
+                    Style::default().fg(DIM),
+                ),
+            ]));
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled(format!(" {}... ", hash_short), Style::default().fg(Color::White)),
+                Span::styled(format_bnt(tx.fee), Style::default().fg(DIM)),
+                Span::styled(
+                    format!(" {}->{}", tx.inputs, tx.outputs),
+                    Style::default().fg(DIM),
+                ),
+            ]));
+        }
+    }
+
+    if block.transactions.len() > max_txs {
+        // more..
+        if let Some(last) = lines.last_mut() {
+            *last = Line::from(Span::styled(
+                format!(" +{} more...", block.transactions.len() - max_txs + 1),
+                Style::default().fg(DIM),
+            ));
+        }
+    }
+
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
 // ── Left panel: cube + block info + block time bar ──
 
 fn render_main_area(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -66,6 +114,8 @@ fn render_left_panel(frame: &mut Frame, app: &mut App, area: Rect) {
     let sections = Layout::vertical([
         Constraint::Min(1),
         Constraint::Length(7),
+        Constraint::Length(1),
+        Constraint::Min(1),
     ])
     .split(area);
 
@@ -79,6 +129,16 @@ fn render_left_panel(frame: &mut Frame, app: &mut App, area: Rect) {
 
     // block info below cube
     render_block_info(frame, app, sections[1]);
+
+    let block = app.chain_blocks.get(app.selected);
+    if let Some(block) = block {
+    let rule: String = "─".repeat(sections[2].width as usize);
+    frame.render_widget(
+        Paragraph::new(Span::styled(rule, Style::default().fg(DIM))),
+        sections[2],
+    );
+    render_tx_list(frame,block,sections[3]);
+    }
 }
 
 fn render_block_info(frame: &mut Frame, app: &App, area: Rect) {
@@ -420,4 +480,3 @@ fn render_progress_bar(frame: &mut Frame, app: &App, area: Rect) {
 
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
-

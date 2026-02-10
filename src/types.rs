@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct DaemonStats {
     pub peer_id: String,
     pub peers: u32,
@@ -20,6 +21,7 @@ pub struct DaemonStats {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct MempoolStats {
     pub count: u32,
     pub size_bytes: u64,
@@ -29,6 +31,7 @@ pub struct MempoolStats {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct BalanceResponse {
     pub spendable: u64,
     pub pending: u64,
@@ -39,6 +42,12 @@ pub struct BalanceResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct AddressResponse {
+    pub address: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct MiningStatus {
     pub running: bool,
     pub threads: u32,
@@ -62,6 +71,7 @@ pub struct BlockTransaction {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct BlockResponse {
     pub height: u64,
     pub hash: String,
@@ -99,5 +109,30 @@ pub fn format_bnt(atomic: u64) -> String {
         let frac_str = format!("{:08}", frac);
         let trimmed = frac_str.trim_end_matches('0');
         format!("{}.{} BNT", whole, trimmed)
+    }
+}
+
+pub fn parse_bnt_amount(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = s.split('.').collect();
+    match parts.len() {
+        1 => {
+            let whole: u64 = parts[0].parse().ok()?;
+            Some(whole.checked_mul(100_000_000)?)
+        }
+        2 => {
+            let whole: u64 = parts[0].parse().ok()?;
+            let frac_raw = parts[1];
+            if frac_raw.len() > 8 {
+                return None;
+            }
+            let frac_str = format!("{:0<8}", frac_raw);
+            let frac: u64 = frac_str.parse().ok()?;
+            Some(whole.checked_mul(100_000_000)?.checked_add(frac)?)
+        }
+        _ => None,
     }
 }

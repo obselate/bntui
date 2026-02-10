@@ -55,6 +55,15 @@ impl ApiClient {
             .await
     }
 
+    pub async fn get_address(&self) -> Result<crate::types::AddressResponse, reqwest::Error> {
+        self.client
+            .get(format!("{}/api/wallet/address", self.base_url))
+            .send()
+            .await?
+            .json()
+            .await
+    }
+
     pub async fn get_mining(&self) -> Result<crate::types::MiningStatus, reqwest::Error> {
         self.client
             .get(format!("{}/api/mining", self.base_url))
@@ -87,6 +96,47 @@ impl ApiClient {
             .send()
             .await?;
         Ok(())
+    }
+
+    pub async fn send_to(&self, address: &str, amount: u64) -> Result<String, String> {
+        let resp = self
+            .client
+            .post(format!("{}/api/wallet/send", self.base_url))
+            .json(&serde_json::json!({
+                "address": address,
+                "amount": amount
+            }))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if status.is_success() {
+            // Try to extract txid from JSON response
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                if let Some(txid) = json
+                    .get("txid")
+                    .or(json.get("hash"))
+                    .and_then(|v| v.as_str())
+                {
+                    return Ok(txid.to_string());
+                }
+            }
+            // Maybe bare txid string
+            let trimmed = body.trim().trim_matches('"');
+            if !trimmed.is_empty() && trimmed.len() <= 64 {
+                Ok(trimmed.to_string())
+            } else {
+                Ok("sent".to_string())
+            }
+        } else {
+            Err(if body.is_empty() {
+                format!("Send failed (HTTP {})", status)
+            } else {
+                body
+            })
+        }
     }
 
     pub async fn get_block(
