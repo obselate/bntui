@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $packageName = 'bntui'
-$version = '0.1.3'
+$version = '0.1.4'
 $url64 = "https://github.com/obselate/bntui/releases/download/v${version}/bntui-windows-x86_64.exe"
 
 $toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)"
