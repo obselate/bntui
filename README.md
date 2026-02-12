@@ -6,7 +6,7 @@
   Terminal block explorer for <a href="https://github.com/blocknetprivacy/blocknet">Blocknet</a>, a privacy-focused cryptocurrency.
 </p>
 
-Built with [ratatui](https://ratatui.rs). Connects to a running Blocknet daemon via its REST API.
+Built with [ratatui](https://ratatui.rs). Connects to Blocknet via its REST API and can auto-start an embedded daemon on localhost.
 
 ## Views
 
@@ -32,10 +32,12 @@ Top-down block field showing the last 500 blocks. Each block is color-coded by t
 
 ## Requirements
 
-- A running Blocknet node with the API enabled (default port 8332)
-- API cookie file at `<blocknet-dir>/data/api.cookie` (created by the daemon on startup)
+- For local default use: no manual daemon setup required (embedded daemon autostarts).
+- For remote/custom setups: reachable Blocknet API + matching cookie file.
 
-> **Note:** The daemon must be running before you launch bntui — it creates the cookie file on startup.
+## Embedded daemon binaries
+
+`bntui` embeds every file placed under `binaries/` at build time and picks the best match for the current OS/arch at runtime.
 
 ## Install
 
@@ -69,7 +71,7 @@ Download the latest binary for your platform from [Releases](https://github.com/
 
 ```bash
 chmod +x bntui
-./bntui /path/to/blocknet
+./bntui
 ```
 
 ### From source
@@ -80,12 +82,12 @@ Requires Rust 1.85+.
 git clone https://github.com/obselate/bntui.git
 cd bntui
 cargo build --release
-./target/release/bntui /path/to/blocknet
+./target/release/bntui
 ```
 
 ## Usage
 
-If the Blocknet daemon is running, `bntui` will automatically find the data directory — no arguments needed:
+`bntui` can run zero-config locally. If no cookie/daemon is found and you use localhost:8332, it auto-starts the embedded daemon with `--api --daemon`:
 
 ```bash
 # auto-detect (checks cwd, then platform default)
@@ -95,8 +97,8 @@ bntui
 bntui searches for `data/api.cookie` in the following order:
 
 1. **Explicit argument** or `BLOCKNET_DIR` env var
-2. **Current directory** — useful when running from the blocknet project directory
-3. **Platform default:**
+2. **Existing cookie directory** (`./data/api.cookie`, then platform default)
+3. **Platform default path** (created if missing):
    - macOS: `~/Library/Application Support/Blocknet`
    - Linux: `~/.blocknet`
    - Windows: `%APPDATA%\Blocknet`
@@ -119,7 +121,7 @@ Options:
 ```
 
 ```bash
-# Or pass the directory explicitly
+# Optional: pass the directory explicitly
 bntui /path/to/blocknet
 
 # Or set the environment variable
@@ -128,6 +130,9 @@ bntui
 
 # Connect to a remote daemon
 bntui --host 192.168.1.100 --port 8332 --cookie /path/to/api.cookie
+
+# Disable embedded daemon autostart (debug/manual mode)
+BNTUI_SKIP_EMBEDDED_DAEMON=1 bntui
 ```
 
 ### Docker
